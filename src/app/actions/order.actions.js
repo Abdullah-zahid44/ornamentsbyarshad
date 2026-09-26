@@ -20,7 +20,15 @@ import { createWhatsAppUrl } from '@/lib/whatsapp';
 import { getServerSession } from 'next-auth';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend = null;
+function getResend() {
+  if (!_resend) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) throw new Error('RESEND_API_KEY is not set');
+    _resend = new Resend(apiKey);
+  }
+  return _resend;
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -51,7 +59,7 @@ export async function sendOrderDeliveredEmail({ order }) {
     const emailBranding = { ...(await getEmailBranding()), inlineImages: true };
     const emailFrom = process.env.EMAIL_FROM || 'Ornaments by Arshad <orders@ornamentsbyarshad.com>';
     const deliveredHtml = generateCustomerOrderDeliveredHtml(order, emailBranding);
-    const customerEmailResult = await resend.emails.send({
+    const customerEmailResult = await getResend().emails.send({
       from: emailFrom,
       to: order.customerEmail,
       subject: `Your Order Has Been Delivered! - ${order.orderId}`,
@@ -75,7 +83,7 @@ async function sendOrderEmails({ order, customerName, userEmail }) {
     const emailFrom = process.env.EMAIL_FROM || 'Ornaments by Arshad <orders@ornamentsbyarshad.com>';
     if (adminRecipients.length > 0) {
       const adminHtml = generateOrderEmailHtml(order, emailBranding);
-      const adminEmailResult = await resend.emails.send({
+      const adminEmailResult = await getResend().emails.send({
         from: emailFrom,
         to: adminRecipients,
         subject: `New Order Received - ${customerName}`,
@@ -90,7 +98,7 @@ async function sendOrderEmails({ order, customerName, userEmail }) {
 
     if (userEmail) {
       const customerHtml = generateCustomerOrderConfirmationHtml(order, emailBranding);
-      const customerEmailResult = await resend.emails.send({
+      const customerEmailResult = await getResend().emails.send({
         from: emailFrom,
         to: userEmail,
         subject: `Thank You for Your Order! - ${order.orderId}`,
